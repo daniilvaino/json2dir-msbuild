@@ -1,0 +1,42 @@
+<Project DefaultTargets="Json2Dir">
+  <PropertyGroup>
+    <Out Condition="'$(Out)' == ''">.</Out>
+    <S>"((?:[^"\\]|\\.)*)"</S>
+    <V>"(?:[^"\\]|\\.)*"|[\[{](?>"(?:[^"\\]|\\.)*"|[^\[\]{}"]+|[\[{](?&lt;d>)|[\]}](?&lt;-d>))*(?(d)(?!))[\]}]</V>
+    <Member>(?s)^\s*$(S)\s*:\s*($(V))\s*,?(.*)$</Member>
+    <Pair>(?s)^\[\s*$(S)\s*,\s*$(S)\s*\]$</Pair>
+  </PropertyGroup>
+
+  <Target Name="Json2Dir">
+    <Error Condition="'$(MSBUILDENABLEALLPROPERTYFUNCTIONS)' != '1'" Text="Set MSBUILDENABLEALLPROPERTYFUNCTIONS=1" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Node" Properties="J=$([MSBuild]::Escape($([MSBuild]::Escape($([System.IO.File]::ReadAllText($([System.IO.Path]::Combine($(MSBuildStartupDirectory), $(In)))))))));D=$([MSBuild]::Escape($([MSBuild]::Escape($([System.IO.Path]::Combine($(MSBuildStartupDirectory), $(Out)))))))" />
+  </Target>
+
+  <Target Name="Node">
+    <PropertyGroup>
+      <T>$([MSBuild]::Escape($(J.Trim())))</T>
+      <K>$(T.Substring(0, 1))</K>
+      <R Condition="'$(K)' == '['">$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Replace($(T), $(Pair), '$1'))))</R>
+      <Tag Condition="'$(K)' == '['">$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Unescape($(R)))))</Tag>
+      <R Condition="'$(K)' == '['">$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Replace($(T), $(Pair), '$2'))))</R>
+      <R Condition="'$(K)' == '&quot;'">$([MSBuild]::Escape($(T.Substring(1, $([MSBuild]::Subtract($(T.Length), 2))))))</R>
+      <C Condition="'$(K)' == '[' or '$(K)' == '&quot;'">$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Unescape($(R)))))</C>
+      <W Condition="'$(Tag)' == 'link'">$([System.IO.File]::CreateSymbolicLink($(D), $(C)))</W>
+      <W Condition="'$(K)' == '&quot;' or ('$(K)' == '[' and '$(Tag)' != 'link')">$([System.IO.File]::WriteAllText($(D), $(C)))</W>
+      <W Condition="'$(K)' == '[' and '$(Tag)' != 'link' and !$([MSBuild]::IsOSPlatform('Windows'))">$([System.IO.File]::SetUnixFileMode($(D), 'UserRead, UserWrite, UserExecute, GroupRead, GroupExecute, OtherRead, OtherExecute'))</W>
+    </PropertyGroup>
+    <MakeDir Condition="'$(K)' == '{'" Directories="$(D)" />
+    <MSBuild Condition="'$(K)' == '{'" Projects="$(MSBuildProjectFullPath)" Targets="Members" Properties="M=$([MSBuild]::Escape($([MSBuild]::Escape($(T.Substring(1, $([MSBuild]::Subtract($(T.Length), 2))))))));D=$([MSBuild]::Escape($([MSBuild]::Escape($(D)))))" />
+  </Target>
+
+  <Target Name="Members" Condition="'$(M.Trim())' != ''">
+    <PropertyGroup>
+      <R>$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Replace($(M), $(Member), '$1'))))</R>
+      <Key>$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Unescape($(R)))))</Key>
+      <Val>$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Replace($(M), $(Member), '$2'))))</Val>
+      <Rest>$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Replace($(M), $(Member), '$3'))))</Rest>
+    </PropertyGroup>
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Node" Properties="J=$([MSBuild]::Escape($([MSBuild]::Escape($(Val)))));D=$([MSBuild]::Escape($([MSBuild]::Escape($([System.IO.Path]::Combine($(D), $(Key)))))))" />
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Members" Properties="M=$([MSBuild]::Escape($([MSBuild]::Escape($(Rest)))));D=$([MSBuild]::Escape($([MSBuild]::Escape($(D)))))" />
+  </Target>
+</Project>
