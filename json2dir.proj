@@ -9,7 +9,11 @@
 
   <Target Name="Json2Dir">
     <Error Condition="'$(MSBUILDENABLEALLPROPERTYFUNCTIONS)' != '1'" Text="Set MSBUILDENABLEALLPROPERTYFUNCTIONS=1" />
-    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Node" Properties="J=$([MSBuild]::Escape($([MSBuild]::Escape($([System.IO.File]::ReadAllText($([System.IO.Path]::Combine($(MSBuildStartupDirectory), $(In)))))))));D=$([MSBuild]::Escape($([MSBuild]::Escape($([System.IO.Path]::Combine($(MSBuildStartupDirectory), $(Out)))))))" />
+    <PropertyGroup>
+      <Src Condition="'$(In)' != ''">$([MSBuild]::Escape($([System.IO.File]::ReadAllText($([System.IO.Path]::Combine($(MSBuildStartupDirectory), $(In)))))))</Src>
+      <Src Condition="'$(In)' == ''">$([MSBuild]::Escape($([System.Console]::In.ReadToEnd())))</Src>
+    </PropertyGroup>
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Node" Properties="J=$([MSBuild]::Escape($([MSBuild]::Escape($(Src)))));D=$([MSBuild]::Escape($([MSBuild]::Escape($([System.IO.Path]::Combine($(MSBuildStartupDirectory), $(Out)))))))" />
   </Target>
 
   <Target Name="Node">

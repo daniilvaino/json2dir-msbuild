@@ -32,17 +32,17 @@ Assume we have the file named `example-tree.json` in the current directory with 
 Then we run this command:
 
 ```sh
-MSBUILDENABLEALLPROPERTYFUNCTIONS=1 dotnet msbuild json2dir.proj -p:In=example-tree.json -p:Out=out
+cat example-tree.json | MSBUILDENABLEALLPROPERTYFUNCTIONS=1 dotnet msbuild json2dir.proj
 ```
 
-Four entries will be created in `out` (or in the current directory if `Out` is omitted):
+Here, four entries will be added to the current directory:
 
 - `greeting`: a regular file containing the text `Hello, world!`.
 - `dir`: a directory with two entries in it (`subfile` and `subdir`).
 - `symlink`: a symbolic link pointing to `target path`.
 - `script`: an executable shell script that prints `Howdy!` when run.
 
-Both `In` and `Out` are resolved relative to the directory `dotnet msbuild` is run from.
+JSON is read from stdin via `Console.In.ReadToEnd()`. Pass `-p:In=file.json` to read a file instead, and `-p:Out=dir` to write somewhere other than the current directory. Both are resolved relative to the directory `dotnet msbuild` is run from.
 
 ## Conversion scheme
 
@@ -82,7 +82,7 @@ An executable file printing `Hello` when run: `["script", "#!/bin/sh\necho Hello
 
 ## How it works
 
-- `Json2Dir` reads the input file and passes it to `Node`.
+- `Json2Dir` reads stdin (or the `In` file) and passes it to `Node`.
 - `Node` looks at the first character of a value. For `{` it creates a directory and hands the inner text to `Members`. For `"` it writes a file. For `[` it creates a symlink or a script.
 - `Members` uses one regex to split off the first `"key": value` pair and the rest of the object. It calls `Node` for the value and itself for the rest.
 - A nested value is matched with balancing groups, so brackets inside strings are not counted:
@@ -95,7 +95,7 @@ An executable file printing `Hello` when run: `["script", "#!/bin/sh\necho Hello
 
 ## Caveats
 
-- **`MSBUILDENABLEALLPROPERTYFUNCTIONS=1` is required.** Reading and parsing use only whitelisted property functions. Stock MSBuild cannot write a file byte for byte, though: `XslTransformation` adds a BOM and CRLF, and `WriteLinesToFile` always appends a newline. Symlinks and the executable bit would otherwise need `Exec`. With the variable set, `File.WriteAllText`, `File.CreateSymbolicLink` and `File.SetUnixFileMode` are called directly.
+- **`MSBUILDENABLEALLPROPERTYFUNCTIONS=1` is required.** Parsing uses only whitelisted property functions. Reading stdin needs `System.Console`, which is not whitelisted. Stock MSBuild cannot write a file byte for byte, though: `XslTransformation` adds a BOM and CRLF, and `WriteLinesToFile` always appends a newline. Symlinks and the executable bit would otherwise need `Exec`. With the variable set, `File.WriteAllText`, `File.CreateSymbolicLink` and `File.SetUnixFileMode` are called directly.
 - **`%XX` in strings**: a `%` followed by two hex digits inside a key or a value is decoded as an MSBuild escape (`%41` becomes `A`, `%3B` becomes `;`). A lone `%` is kept as is.
 - **No validation**: the input is assumed to be valid JSON. Keys are not checked, so `..`, rooted paths and multi-segment paths are passed to `Path.Combine` as is. Only use trusted input.
 - **No deletion**: existing files are overwritten. An existing symlink makes the build fail.
