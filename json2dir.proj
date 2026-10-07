@@ -40,6 +40,7 @@
       <Val>$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Replace($(M), $(Member), '$2'))))</Val>
       <Rest>$([MSBuild]::Escape($([System.Text.RegularExpressions.Regex]::Replace($(M), $(Member), '$3'))))</Rest>
     </PropertyGroup>
+    <Error Condition="'$(Key)' == '' or '$(Key)' == '.' or '$(Key)' == '..' or '$([System.IO.Path]::GetFileName($(Key)))' != '$(Key)' or $([System.Text.RegularExpressions.Regex]::IsMatch($(Key), '\x00'))" Text="Invalid name: $(R)" />
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Node" Properties="J=$([MSBuild]::Escape($([MSBuild]::Escape($(Val)))));D=$([MSBuild]::Escape($([MSBuild]::Escape($([System.IO.Path]::Combine($(D), $(Key)))))))" />
     <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Members" Properties="M=$([MSBuild]::Escape($([MSBuild]::Escape($(Rest)))));D=$([MSBuild]::Escape($([MSBuild]::Escape($(D)))))" />
   </Target>

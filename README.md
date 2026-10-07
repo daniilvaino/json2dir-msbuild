@@ -97,7 +97,7 @@ An executable file printing `Hello` when run: `["script", "#!/bin/sh\necho Hello
 
 - **`MSBUILDENABLEALLPROPERTYFUNCTIONS=1` is required.** Parsing uses only whitelisted property functions. Reading stdin needs `System.Console`, which is not whitelisted. Stock MSBuild cannot write a file byte for byte, though: `XslTransformation` adds a BOM and CRLF, and `WriteLinesToFile` always appends a newline. Symlinks and the executable bit would otherwise need `Exec`. With the variable set, `File.WriteAllText`, `File.CreateSymbolicLink` and `File.SetUnixFileMode` are called directly.
 - **`%XX` in strings**: a `%` followed by two hex digits inside a key or a value is decoded as an MSBuild escape (`%41` becomes `A`, `%3B` becomes `;`). A lone `%` is kept as is.
-- **No validation**: the input is assumed to be valid JSON. Keys are not checked, so `..`, rooted paths and multi-segment paths are passed to `Path.Combine` as is. Only use trusted input.
+- **Little validation**: the input is assumed to be valid JSON. Keys are checked after unescaping: an empty key, `.`, `..`, a key containing `/` (or, on Windows, any other path separator or volume) or NUL fails the build with an `<Error>` before anything is created for that member. Entries created for earlier members are kept.
 - **No deletion**: existing files are overwritten. An existing symlink makes the build fail.
 - **Windows**: symlinks need Developer Mode or admin rights. The executable bit is skipped.
 - **Time of check, time of use attacks**: when using this to create files for other users, care must be taken to prevent TOCTOU attacks (e.g. with symlinks). No attempt is made to guard against them.
